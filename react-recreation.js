@@ -1,60 +1,144 @@
 /** jsx dom */
-let dom = (tag, attrs, ...children) => {
-  return {tag, attrs, children}
+
+let dom = (type, props, ...children) =>  {
+  return {type, props: props || {}, children}
 }
-
-
-const list = (
-  <ul class="list">
-    <li> Hope </li>
-    <li> This </li>
-    <li> Works </li>
-  </ul>
-)
 
 let createElement = (node) => {
   if(typeof node == 'string') {
     return document.createTextNode(node)
   }
-  let el = document.createElement(node.tag)
-  for(var i = 0; i < node.children.length; i++) {
-    el.appendChild(createElement(node.children[i]))
-  }
+  let el = document.createElement(node.type)
+  setProps(el, node.props)
+  node.children.forEach(child => el.appendChild(createElement(child)))
   return el
 }
 
-let updateElement = (parent, newNode, oldNode, index = 0) => {
-  if(!oldNode) {
-    let newElement = createElement(newNode)
-    parent.appendChild(newElement)
-  }
-  else if(!newNode) {
-    parent.removeChild(parent.childNodes[index])
-  }
+let setProps = (target, props) => {
+  Object.keys(props).forEach(name => setProp(target, name, props[name]))
+}
 
-  else if (changed(newNode, oldNode)) {
-    $parent.replaceChild(createElement(newNode), parent.childNodes[index])
+let isCustomProp = (name) => {
+  return false;
+}
+
+let setProp = (target, name, value) => {
+  if(isCustomProp(name)) {
+    return;
   }
-  else if(newNode.type) {
-    const newLength = newNode.children.length;
-    const oldLenghth = oldNode.children.length;
-    for(let i = 0; i < newLength || i < oldLength; i++) {
+  else if(name == 'className') {
+    target.setAttribute('class', value)
+  }
+  else if(typeof name == 'boolean') {
+    setBooleanProp(target, name, value)
+  }
+  else {
+    target.setAttribute(name, value)
+  }
+}
+
+let updateProp = (target, name, newVal, oldVal) => {
+  if(!newVal) {
+    removeProp(target, name, oldVal)
+  }
+  else if(!oldVal || newVal !== oldVal) {
+    addProp(target, name, newVal)
+  }
+}
+
+let updateProps = (target, newProps, oldProps = {}) => {
+  let props = Object.assign({}, newProps, oldProps)
+  Object.keys(props).forEach(name => {
+    updateProp(target, name, newProps[name], oldProps[name])
+  })
+}
+
+
+let updateElement = (parentElement, newElement, oldElement, index = 0) => {
+  if(!oldElement) {
+    parentElement.appendChild(createElement(newElement))
+  }
+  else if(!newElement) {
+    parentElement.removeChild(parentElement.childNodes[index])
+  }
+  else if(changed(newElement, oldElement)) {
+    parentElement.replaceChild(createElement(newElement), parentElement.childNodes[index])
+  }
+  else if(newElement.constructor == Object) {
+    for(var i = 0; i < newElement.children.length || i < oldElement.children.length; i+=1) {
       updateElement(
-        parent.childNodes[index],
-        newNode.children[i],
-        oldNode.children[i],
+        parentElement.childNodes[index],
+        newElement.children[i],
+        oldElement.children[i],
         i
       )
     }
   }
 }
 
-let changed = (nodeOne, nodeTwo) => {
-  return typeof nodeOne !== typeof nodeTwo ||
-  typeof nodeOne === 'string' && nodeOne != nodeTwo ||
-  nodeOne.type !== nodeTwo.type
+let setBooleanProp = (target, name, value) => {
+  if(value == true) {
+    target.setAttribute(name, value)
+    target[name] = true
+  }
+  else {
+    target.setAttribute(name, value)
+    target[name] = false
+  }
 }
 
 
-const app = document.getElementById('app')
-app.appendChild(createElement(list))
+let changed = (nodeOne, nodeTwo) => {
+  let ensureStringsDoNotMatch = (typeof nodeOne == 'string' || typeof nodeTwo == 'string') && (nodeOne != nodeTwo)
+  let ensureTypesDoNotMatch  = (typeof nodeOne != typeof nodeTwo)
+  let elementTypesDoNotMatch = (nodeOne.type != nodeTwo.type)
+  let result = [ensureTypesDoNotMatch, ensureStringsDoNotMatch, elementTypesDoNotMatch].reduce((prev, curr) => {
+    return prev || curr
+  })
+  return result
+}
+
+const a = (
+  <ul style="list-style: none;">
+    <li className="item">item 1</li>
+    <li className="item-two"> Wow </li>
+  </ul>
+);
+
+const b = (
+  <ul style="list-style: none;">
+    <li className="item">New Item</li>
+    <li className="item-two"> Second Item </li>
+  </ul>
+);
+
+let removeBooleanProp = (target, name) => {
+  target.removeAttribute(name)
+  target[name] = false
+}
+
+let removeProp = (target, name, value) => {
+  if(isCustomProp(name)) {
+    return;
+  }
+  else if(name == 'className') {
+    target.removeAttribute('class')
+  }
+  else if(typeof value === 'boolean') {
+    removeBooleanProp(target, name)
+  }
+  else {
+    target.removeChild(name)
+  }
+}
+
+
+const $root = document.getElementById('root');
+const $diff = document.getElementById('diff');
+const $undiff = document.getElementById('undiff');
+
+$root.appendChild(createElement(a))
+
+$diff.addEventListener('click', () => {
+  updateElement($root, b, a);
+});

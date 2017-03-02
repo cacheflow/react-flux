@@ -2,7 +2,7 @@ var webpack = require('webpack')
 
 
 module.exports = {
-  entry: "./react-again.js",
+  entry: "./react-recreation.js",
   target: 'node',
   output: {
     path: 'public/',
